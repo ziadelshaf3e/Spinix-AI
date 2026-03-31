@@ -1,3 +1,7 @@
+# ==============================
+# Spinix AI v6.5 FULL SYSTEM
+# ==============================
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -6,25 +10,28 @@ import plotly.graph_objects as go
 from sklearn.ensemble import RandomForestClassifier
 import hashlib
 
-# 1. إعدادات الصفحة
-st.set_page_config(page_title="Spinix AI Elite v6.1", layout="wide")
+st.set_page_config(page_title="Spinix AI v6.5", layout="wide")
 
-# 2. نظام الدخول
+# ==============================
+# 🔐 AUTH SYSTEM
+# ==============================
+
 def hash_pass(p):
     return hashlib.sha256(p.encode()).hexdigest()
 
 USERS = {
     "admin": {"password": hash_pass("1234"), "role": "Admin"},
-    "ziad": {"password": hash_pass("spinix2026"), "role": "Doctor"}
+    "doctor": {"password": hash_pass("1234"), "role": "Doctor"}
 }
 
 if "login" not in st.session_state:
     st.session_state.login = False
 
 def login():
-    st.markdown("<h1 style='text-align: center; color: #00ffcc;'>🛡️ Spinix AI Login</h1>", unsafe_allow_html=True)
-    u = st.text_input("Username", key="user_input")
-    p = st.text_input("Password", type="password", key="pass_input")
+    st.markdown("<h1 style='text-align:center;color:#00ffcc;'>Spinix AI Login</h1>", unsafe_allow_html=True)
+    u = st.text_input("Username")
+    p = st.text_input("Password", type="password")
+
     if st.button("Login"):
         if u in USERS and USERS[u]["password"] == hash_pass(p):
             st.session_state.login = True
@@ -37,17 +44,23 @@ if not st.session_state.login:
     login()
     st.stop()
 
-# 3. ستايل الواجهة
+# ==============================
+# 🎨 UI STYLE
+# ==============================
+
 st.markdown("""
 <style>
-    .main { background-color: #0b0f14; color: #e0e0e0; }
-    .stMetric { background-color: #161b22; padding: 15px; border-radius: 10px; border: 1px solid #00ffcc33; }
-    h1, h2, h3 { color: #00ffcc !important; }
+body {background:#0b0f14;color:#e0e0e0;}
+.stMetric {background:#161b22;padding:15px;border-radius:10px;border:1px solid #00ffcc33;}
+h1,h2,h3 {color:#00ffcc;}
 </style>
 """, unsafe_allow_html=True)
 
-# 4. قاعدة البيانات
-conn = sqlite3.connect("spinix_v6.db", check_same_thread=False)
+# ==============================
+# 💾 DATABASE
+# ==============================
+
+conn = sqlite3.connect("spinix.db", check_same_thread=False)
 
 def save(df):
     df.to_sql("data", conn, if_exists="replace", index=False)
@@ -58,61 +71,197 @@ def load():
     except:
         return None
 
-# 5. رفع الملف والـ Mapping
-st.sidebar.title(f"Welcome Dr. {st.session_state.user}")
-file = st.sidebar.file_uploader("Upload Squad CSV", type="csv")
+# ==============================
+# 📂 UPLOAD + MAPPING
+# ==============================
+
+st.sidebar.title(f"Welcome {st.session_state.user}")
+
+file = st.sidebar.file_uploader("Upload CSV")
 
 if file:
-    raw = pd.read_csv(file, encoding='utf-8-sig')
-    st.sidebar.write("### Column Mapping")
+    raw = pd.read_csv(file)
+
+    st.sidebar.write("Column Mapping")
+
     mapping = {}
-    cols_options = ["Ignore", "Date", "Player", "Workload", "RPE", "Sleep", "Heart Rate", "Fatigue"]
+    options = ["Ignore","Date","Player","Workload","RPE","Sleep","Heart Rate","Fatigue"]
+
     for c in raw.columns:
-        mapping[c] = st.sidebar.selectbox(f"Map '{c}' to:", cols_options, key=f"map_{c}")
+        mapping[c] = st.sidebar.selectbox(f"{c}", options)
 
     df_new = pd.DataFrame()
-    for k, v in mapping.items():
-        if v != "Ignore":
-            df_new[v] = raw[k]
-    
-    if not df_new.empty and 'Player' in df_new.columns:
+
+    for k,v in mapping.items():
+        if v!="Ignore":
+            df_new[v]=raw[k]
+
+    if not df_new.empty:
         save(df_new)
-        st.sidebar.success("Data Saved!")
+        st.success("Data Saved")
 
 df = load()
 
-if df is None or df.empty:
-    st.info("👋 Dr. Ziad, please upload a CSV file to activate the AI system.")
+if df is None:
     st.stop()
 
-# 6. محرك الذكاء الاصطناعي
-player_list = df['Player'].unique()
-player = st.selectbox("🎯 Select Player", player_list)
-pdf = df[df['Player'] == player].copy()
+# ==============================
+# ✅ VALIDATION
+# ==============================
 
-# حسابات الأحمال (ACWR)
+required = ['Player','Workload','RPE','Sleep']
+for col in required:
+    if col not in df.columns:
+        st.error(f"Missing column: {col}")
+        st.stop()
+
+# ترتيب التاريخ
+if 'Date' in df.columns:
+    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+    df = df.sort_values('Date')
+
+# ==============================
+# 👤 PLAYER SELECT
+# ==============================
+
+player = st.selectbox("Select Player", df['Player'].dropna().unique())
+pdf = df[df['Player']==player].copy()
+
+# ==============================
+# 🧠 AI ENGINE
+# ==============================
+
 pdf['Acute'] = pdf['Workload'].rolling(7, min_periods=1).mean()
 pdf['Chronic'] = pdf['Workload'].rolling(28, min_periods=1).mean()
-pdf['ACWR'] = pdf['Acute'] / (pdf['Chronic'] + 0.1)
-pdf['Injury_Target'] = ((pdf['ACWR'] > 1.3) | (pdf['RPE'] > 8)).astype(int)
 
-# تدريب الموديل
-features = ['Workload', 'RPE', 'Sleep']
-train_df = pdf.dropna(subset=features + ['Injury_Target'])
+pdf['ACWR'] = np.where(pdf['Chronic']>0, pdf['Acute']/pdf['Chronic'],0)
 
-risk = 0.0
-if len(train_df) > 1:
+pdf['Fatigue Index'] = (
+0.4*pdf['RPE'] + 0.3*pdf['ACWR'] + 0.3*(10-pdf['Sleep'])
+)
+
+pdf['Performance'] = (
+0.5*pdf['Workload'] + 0.3*pdf['RPE'] + 0.2*pdf['Sleep']
+)
+
+pdf['Injury'] = (
+(pdf['ACWR']>1.3) | (pdf['RPE']>8) | (pdf['Sleep']<6)
+).astype(int)
+
+train = pdf.dropna()
+
+risk = 0.3
+
+if len(train)>5:
     try:
-        model = RandomForestClassifier(n_estimators=50)
-        model.fit(train_df[features], train_df['Injury_Target'])
-        latest_feat = pdf[features].iloc[-1:].values
-        risk = model.predict_proba(latest_feat)[0][1]
+        model = RandomForestClassifier(n_estimators=100)
+        model.fit(train[['Workload','RPE','Sleep']], train['Injury'])
+
+        latest = pdf[['Workload','RPE','Sleep']].dropna().iloc[-1:]
+        risk = model.predict_proba(latest)[0][1]
     except:
         risk = 0.5
 
-# 7. التوزيعة البصرية (Layout)
-col1, col2, col3 = st.columns([1, 2, 1])
+# ==============================
+# 🎯 COLOR
+# ==============================
 
+if risk>0.7:
+    color="#ff4d4d"
+elif risk>0.4:
+    color="#ffaa00"
+else:
+    color="#00ffcc"
+
+# ==============================
+# 🧍 BODY MAP
+# ==============================
+
+def body():
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(x=[0,0],y=[0,2],mode='lines',line=dict(color="white")))
+    fig.add_trace(go.Scatter(x=[0],y=[2],mode='markers',marker=dict(size=15,color="white")))
+
+    fig.add_trace(go.Scatter(x=[0],y=[1],mode='markers',
+        marker=dict(size=40,color=color,opacity=0.6)))
+
+    fig.update_layout(height=300,paper_bgcolor="#0b0f14",
+                      xaxis=dict(visible=False),yaxis=dict(visible=False))
+    return fig
+
+# ==============================
+# 📡 LIVE TRACKING (SIM)
+# ==============================
+
+pdf['Distance'] = pdf['Workload']*0.8
+pdf['Sprints'] = pdf['RPE']*2
+
+# ==============================
+# 💰 ROI
+# ==============================
+
+salary = st.sidebar.number_input("Daily Salary",1000)
+days = st.sidebar.number_input("Days Saved",5)
+
+saved = salary*days*(1-risk)
+
+# ==============================
+# 📊 LAYOUT
+# ==============================
+
+col1,col2,col3 = st.columns([1,2,1])
+
+# LEFT
 with col1:
-    st.markdown("### 🚨 Squad Alerts")
-    color = "red" if risk > 0.7 elseisk_color}; background:#1a1f2b;">, use_container_width=True)
+    st.markdown("### Squad Alerts")
+
+    high = (pdf['ACWR']>1.3).sum()
+
+    if high>=3:
+        st.error("🚨 Squad Overload")
+    else:
+        st.success("Squad OK")
+
+    st.metric("Risk", f"{risk*100:.1f}%")
+
+# CENTER
+with col2:
+    st.markdown("### Injury Map")
+    st.plotly_chart(body(),use_container_width=True)
+
+# RIGHT
+with col3:
+    st.markdown("### Market & ROI")
+
+    value = pdf['Performance'].iloc[-1]*120000
+    st.metric("Value", f"${value:,.0f}")
+    st.metric("Saved", f"${saved:,.0f}")
+
+# ==============================
+# 📉 CHARTS
+# ==============================
+
+st.markdown("### Workload")
+st.line_chart(pdf['Workload'])
+
+st.markdown("### ACWR")
+st.line_chart(pdf['ACWR'])
+
+# ==============================
+# 🤖 RECOMMENDATION
+# ==============================
+
+if risk>0.7:
+    st.error("🚨 FULL REST")
+elif risk>0.4:
+    st.warning("⚠️ REDUCE LOAD")
+else:
+    st.success("✅ OPTIMAL")
+
+# ==============================
+# FOOTER
+# ==============================
+
+st.markdown("---")
+st.caption("Spinix AI v6.5 | Elite System")round:#1a1f2b;">, use_container_width=True)
