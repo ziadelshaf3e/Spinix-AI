@@ -264,4 +264,4 @@ else:
 # ==============================
 
 st.markdown("---")
-st.caption("Spinix AI v6.5 | Elite System")round:#1a1f2b;">, use_container_width=True)
+st.caption("Spinix AI v6.5 | Elite System")
