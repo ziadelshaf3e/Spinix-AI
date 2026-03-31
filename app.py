@@ -82,7 +82,7 @@ def load():
 file = st.sidebar.file_uploader("Upload CSV")
 
 if file:
-    raw = pd.read_csv(file)
+    raw = pd.read_csv(file, encoding='utf-8-sig')
 
     st.sidebar.write("Column Mapping")
 
