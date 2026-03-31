@@ -137,22 +137,23 @@ features = ['ACWR','RPE','Sleep','Heart Rate','Fatigue']
 
 model = RandomForestClassifier()
 # تنظيف الداتا قبل ما الـ AI يلمسها
+       # تنظيف الداتا قبل ما الـ AI يلمسها
         ml = df_input.dropna(subset=['Workload', 'RPE', 'Sleep', 'Injury'])
         
-        # التأكد إن فيه داتا كافية
         if not ml.empty:
             features = ['Workload', 'RPE', 'Sleep']
+            from sklearn.ensemble import RandomForestClassifier
             model = RandomForestClassifier()
             model.fit(ml[features], ml['Injury'])
             
-            # التوقع للاعب المختار
-            latest_data = df_player.iloc[-1:]
+            # التوقع
+            latest_data = df_input.iloc[-1:]
             prediction = model.predict(latest_data[features])[0]
             
             if prediction == 1:
-                st.error(f"⚠️ Spinix AI Warning: High Injury Risk for {player_name}")
+                st.error(f"⚠️ Spinix AI Warning: High Injury Risk")
             else:
-                st.success(f"✅ Spinix AI Status: {player_name} is Fit")
+                st.success(f"✅ Spinix AI Status: Player is Fit")
 latest = df.iloc[-1]
 risk = model.predict_proba([latest[features]])[0][1]
 
