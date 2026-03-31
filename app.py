@@ -1,93 +1,138 @@
+# ==========================================
+# Spinix AI v5.1 - ELITE SYSTEM (MODIFIED)
+# ==========================================
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import numpy as np
+import sqlite3
+import plotly.graph_objects as go
 from sklearn.ensemble import RandomForestClassifier
+import hashlib
 
-# --- 1. إعدادات الهوية البصرية (Professional Dark UI) ---
-st.set_page_config(page_title="SPINIX AI | Injury Hub", layout="wide", page_icon="🛡️")
+# إعداد الصفحة
+st.set_page_config(page_title="Spinix AI v5.1", layout="wide", page_icon="🛡️")
 
-# CSS "الضربة القاضية" لتحويل الموقع لداشبورد احترافية
+# ==============================
+# 🔐 نظام الدخول (Security)
+# ==============================
+def hash_pass(p):
+    return hashlib.sha256(p.encode()).hexdigest()
+
+USERS = {
+    "admin": {"password": hash_pass("1234"), "role": "Admin"},
+    "ziad": {"password": hash_pass("spinix2026"), "role": "Doctor"}
+}
+
+if "login" not in st.session_state:
+    st.session_state.login = False
+
+def login_screen():
+    st.markdown("<h1 style='text-align: center; color: #00ffcc;'>🛡️ Spinix AI Login</h1>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
+        if st.button("Access Dashboard", use_container_width=True):
+            if u in USERS and USERS[u]["password"] == hash_pass(p):
+                st.session_state.login = True
+                st.session_state.role = USERS[u]["role"]
+                st.session_state.user = u
+                st.rerun()
+            else:
+                st.error("Access Denied: Invalid Credentials")
+
+if not st.session_state.login:
+    login_screen()
+    st.stop()
+
+# ==============================
+# 🎨 الهوية البصرية (Dark Mode)
+# ==============================
 st.markdown("""
-    <style>
-    .main { background-color: #0b0e14; color: #e0e0e0; }
-    [data-testid="stSidebar"] { background-color: #11151c; border-right: 1px solid #1e293b; }
-    .stMetric { background-color: #1a1f2b; padding: 20px; border-radius: 15px; border: 1px solid #2d3748; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-    h1, h2, h3 { color: #4facfe; font-family: 'Arial Black', sans-serif; text-transform: uppercase; letter-spacing: 2px; }
-    .status-box { background: linear-gradient(135deg, #1a1f2b 0%, #11151c 100%); padding: 15px; border-radius: 12px; border-left: 4px solid #4facfe; margin-bottom: 10px; }
-    hr { border: 0.5px solid #2d3748; }
-    </style>
-    """, unsafe_allow_html=True)
+<style>
+    .main { background-color: #0b0f14; color: #00ffcc; }
+    [data-testid="stSidebar"] { background-color: #11151c; }
+    .stMetric { background-color: #1a1f2b; padding: 15px; border-radius: 12px; border: 1px solid #00ffcc33; }
+    h1, h2, h3 { color: #00ffcc; font-family: 'Arial Black', sans-serif; }
+</style>
+""", unsafe_allow_html=True)
 
-# --- 2. الهيدر (العنوان اللامع) ---
-st.markdown("<h1 style='text-align: center;'>🛡️ SPINIX AI CLINIC</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #8899a6; font-size: 1.1em;'>SPORTS AI & MEDICINE | PERFORMANCE & INJURY HUB</p>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #4facfe;'>By: Dr. Ziad Elshafei</p>", unsafe_allow_html=True)
-st.divider()
+# ==============================
+# 💾 قاعدة البيانات (Stable Storage)
+# ==============================
+conn = sqlite3.connect("spinix_elite.db", check_same_thread=False)
 
-# --- 3. Sidebar (التحكم في البيانات) ---
-st.sidebar.markdown("### 🏟️ SQUAD CONTROL")
-uploaded_file = st.sidebar.file_uploader("Upload Player Data (CSV)", type="csv")
+def save_data(df):
+    df.to_sql("players_data", conn, if_exists="replace", index=False)
 
-if uploaded_file:
+def load_data():
     try:
-        df = pd.read_csv(uploaded_file, encoding='utf-8-sig')
-        required = ['Player', 'Workload', 'RPE', 'Sleep', 'Injury']
-        
-        if all(col in df.columns for col in required):
-            selected_player = st.sidebar.selectbox("🎯 SELECT ATHLETE", df['Player'].unique())
-            player_df = df[df['Player'] == selected_player]
-            latest = player_df.iloc[-1]
+        return pd.read_sql("SELECT * FROM players_data", conn)
+    except:
+        return None
 
-            # --- 4. توزيعه الـ Dashboard (Layout) ---
-            col_left, col_mid, col_right = st.columns([1, 1.5, 1])
+# ==============================
+# 📂 إدارة الملفات (Mapping System)
+# ==============================
+st.sidebar.markdown(f"### 👨‍⚕️ Dr. {st.session_state.user.capitalize()}")
+file = st.sidebar.file_uploader("Upload Squad CSV", type="csv")
 
-            # العمود الأيسر: تنبيهات الفريق
-            with col_left:
-                st.subheader("⚠️ RISK ALERTS")
-                for p in df['Player'].unique()[:4]:
-                    risk = df[df['Player'] == p]['Injury'].mean() * 100
-                    color = "#ff4b4b" if risk > 50 else "#ffa500" if risk > 20 else "#00ffcc"
-                    st.markdown(f"""
-                        <div class="status-box" style="border-left-color: {color}">
-                            <span style="font-size: 0.9em; color: #8899a6;">PLAYER</span><br>
-                            <span style="font-weight: bold; font-size: 1.1em;">{p}</span><br>
-                            <span style="color: {color}; font-size: 0.8em;">RISK: {risk:.0f}%</span>
-                        </div>
-                    """, unsafe_allow_html=True)
+if file:
+    raw = pd.read_csv(file, encoding='utf-8-sig')
+    st.sidebar.info("Map your columns below:")
+    
+    mapping = {}
+    cols = ["Ignore", "Date", "Player", "Workload", "RPE", "Sleep", "Heart Rate", "Fatigue"]
+    for c in raw.columns:
+        mapping[c] = st.sidebar.selectbox(f"Column: {c}", cols, key=c)
 
-            # العمود الأوسط: تحليل الجسم والرسومات
-            with col_mid:
-                st.subheader("📍 BODY ANALYSIS")
-                # صورة تخطيطية قريبة من الواقع
-                st.image("https://img.icons8.com/color/480/human-body.png", width=250)
-                st.markdown("<p style='text-align: center; color: #ff4b4b; font-weight: bold;'>PREDICTED SITES: HAMSTRINGS</p>", unsafe_allow_html=True)
-                
-                # رسم بياني احترافي للأحمال
-                fig = px.area(player_df, x='Date', y='Workload', title="WORKLOAD INTENSITY")
-                fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color="#e0e0e0")
-                st.plotly_chart(fig, use_container_width=True)
+    df_final = pd.DataFrame()
+    for k, v in mapping.items():
+        if v != "Ignore":
+            df_final[v] = raw[k]
+    
+    if 'Date' in df_final.columns:
+        df_final['Date'] = pd.to_datetime(df_final['Date'])
+        save_data(df_final)
+        st.sidebar.success("Data Synced!")
 
-            # العمود الأيمن: الذكاء الاصطناعي والتوقعات
-            with col_right:
-                st.subheader("🧠 AI PREDICTION")
-                st.metric("FITNESS SCORE", f"{100 - (latest['Workload']/10):.0f}%", "OPTIMAL")
-                st.metric("ROI FROM PREVENTION", "15M EGP", "SAVED")
-                
-                # محرك التوقع
-                ml_data = df.dropna(subset=required)
-                model = RandomForestClassifier(n_estimators=100).fit(ml_data[['Workload', 'RPE', 'Sleep']], ml_data['Injury'])
-                pred = model.predict(latest[['Workload', 'RPE', 'Sleep']].values.reshape(1, -1))[0]
-                
-                st.divider()
-                if pred == 1:
-                    st.error(f"SYSTEM ALERT: High Injury markers detected for {selected_player}.")
-                else:
-                    st.success(f"SYSTEM STATUS: {selected_player} is Fit for selection.")
+df = load_data()
 
-        else:
-            st.error("Error: CSV must have columns: Player, Workload, RPE, Sleep, Injury")
-    except Exception as e:
-        st.error(f"Critical Error: {e}")
-else:
-    st.info("👋 Dr. Ziad, please upload the CSV file from the sidebar to activate Spinix AI Hub.")
-    st.image("https://img.freepik.com/free-vector/abstract-digital-technology-background-with-network-connection-lines_1017-25552.jpg", use_container_width=True)
+if df is None or df.empty:
+    st.warning("👋 Welcome Dr. Ziad! Please upload a CSV file to activate the AI system.")
+    st.stop()
+
+# ==============================
+# 🧠 محرك الذكاء الاصطناعي (ACWR Engine)
+# ==============================
+player_names = df['Player'].unique()
+selected_player = st.selectbox("🎯 Select Athlete for Analysis", player_names)
+p_df = df[df['Player'] == selected_player].sort_values('Date').copy()
+
+# حسابات الأحمال (Advanced Metrics)
+p_df['Acute'] = p_df['Workload'].rolling(window=7, min_periods=1).mean()
+p_df['Chronic'] = p_df['Workload'].rolling(window=28, min_periods=1).mean()
+p_df['ACWR'] = p_df['Acute'] / (p_df['Chronic'] + 0.001)
+
+# تنظيف الداتا للـ AI
+features = ['Workload', 'RPE', 'Sleep'] # الميزات الأساسية المضمونة
+p_df['Injury_Label'] = ((p_df['ACWR'] > 1.3) | (p_df['RPE'] > 8)).astype(int)
+
+# تدريب الموديل سريعاً
+X = p_df[features].fillna(0)
+y = p_df['Injury_Label']
+model = RandomForestClassifier(n_estimators=50).fit(X, y)
+
+latest = p_df.iloc[-1]
+risk_prob = model.predict_proba([latest[features].values])[0][1]
+
+# ==============================
+# 📊 الهيكل البصري (Layout)
+# ==============================
+c1, c2, c3 = st.columns([1, 2, 1])
+
+with c1:
+    st.markdown("### 🚨 Squad Alerts")
+    risk_color = "red" if risk_prob > 0.7 else "orange" if risk_prob > 0.4 else "green"
+    st.markdown(f"""
+        <div style="padding:20px; border-radius:10px; border-left: 5px solid {risk_color}; background:#1a1f2b;">, use_container_width=True)
