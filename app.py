@@ -20,7 +20,7 @@ def hash_pass(p):
     return hashlib.sha256(p.encode()).hexdigest()
 
 USERS = {
-    "admin": {"password": hash_pass("1234")},
+    "Dr. Ziad Elshafei": {"password": hash_pass("1234")},
     "doctor": {"password": hash_pass("1234")}
 }
 
