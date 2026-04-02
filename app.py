@@ -13,41 +13,36 @@ from datetime import datetime
 # ==========================================
 # 🧠 AI BIOMECHANICS ENGINE (ULTRA STABLE)
 # ==========================================
-# تغيير جذري في طريقة الاستدعاء لتجنب AttributeError
 try:
     import mediapipe as mp
     from mediapipe.python.solutions import pose as mp_pose
     from mediapipe.python.solutions import drawing_utils as mp_drawing
     
-    # تعريف موديل التحليل الحركي
     pose_engine = mp_pose.Pose(
         static_image_mode=False,
         model_complexity=1,
         min_detection_confidence=0.5,
         min_tracking_confidence=0.5
     )
-    st.sidebar.success("✅ AI Engine Online")
 except Exception as e:
-    # محاولة بديلة في حالة فشل الاستدعاء المباشر
     try:
+        import mediapipe as mp
         mp_pose = mp.solutions.pose
         mp_drawing = mp.solutions.drawing_utils
         pose_engine = mp_pose.Pose()
-        st.sidebar.success("✅ AI Engine Online (Legacy)")
     except:
-        st.sidebar.error(f"❌ AI Module Error: {e}")
+        st.sidebar.error(f"AI Module Error: {e}")
 
 # ==========================================
 # 🎨 UI & STYLING
 # ==========================================
-st.set_page_config(page_title="Spinix AI Elite v8.5", layout="wide")
+st.set_page_config(page_title="Spinix AI Elite v8.6", layout="wide")
 
 st.markdown("""
 <style>
     .main { background-color: #0b0f14; color: white; }
     [data-testid="stSidebar"] { background-color: #111827; }
     .stMetric { background: #161b22; padding: 15px; border-radius: 12px; border: 1px solid #00ffcc22; }
-    .panel-card { background: #111827; padding: 20px; border-radius: 15px; border-left: 5px solid #00ffcc; }
     h1, h2, h3 { color: #00ffcc !important; }
 </style>
 """, unsafe_allow_html=True)
@@ -77,9 +72,9 @@ if not st.session_state.login:
     st.stop()
 
 # ==========================================
-# 💾 DATABASE ENGINE
+# 💾 DATABASE & DATA LOADING
 # ==========================================
-conn = sqlite3.connect("spinix_final.db", check_same_thread=False)
+conn = sqlite3.connect("spinix_pro_v8.db", check_same_thread=False)
 
 def load_data():
     try:
@@ -93,9 +88,6 @@ def load_data():
             "Sleep": [8, 7, 8, 6, 5, 5, 4, 8, 9, 7]
         })
 
-# ==========================================
-# 📂 DATA MANAGEMENT
-# ==========================================
 st.sidebar.title(f"👤 {st.session_state.user}")
 file = st.sidebar.file_uploader("Sync CSV Data", type="csv")
 
@@ -110,7 +102,7 @@ p_df = df[df['Player'] == player_name].copy()
 p_df['Date'] = pd.to_datetime(p_df['Date'])
 
 # ==========================================
-# 🧠 AI ANALYTICS (ACWR)
+# 🧠 AI ANALYTICS
 # ==========================================
 p_df['Acute'] = p_df['Workload'].rolling(7, 1).mean()
 p_df['Chronic'] = p_df['Workload'].rolling(28, 1).mean()
@@ -133,7 +125,6 @@ def process_video_frame(video_file):
     ret, frame = cap.read()
     if ret:
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        # استخدام الـ Engine المعرف في البداية
         results = pose_engine.process(frame_rgb)
         if results.pose_landmarks:
             mp_drawing.draw_landmarks(frame_rgb, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
@@ -148,7 +139,7 @@ st.header(f"🚀 {player_name} Performance Analysis")
 c1, c2, c3 = st.columns(3)
 c1.metric("Injury Risk", f"{risk_val*100:.1f}%")
 c2.metric("ACWR Ratio", f"{p_df['ACWR'].iloc[-1]:.2f}")
-c3.metric("Training Status", "Ready" if risk_val < 0.5 else "Danger")
+c3.metric("Readiness", f"{int(100-(risk_val*100))}%")
 
 st.divider()
 
@@ -163,10 +154,14 @@ with tab2:
         res_img = process_video_frame(v_file)
         if res_img is not None:
             st.image(res_img, caption="Spinix AI Analysis", use_container_width=True)
-            st.success("✅ Pose Estimation Active")
 
-st.caption("Spinix AI Elite v8.5 | Specialized Clinical System")
+# --- SYSTEM DECISION (FIXED INDENTATION) ---
+st.divider()
+if risk_val > 0.7:
+    st.error(f"🚨 CRITICAL: {player_name} is in the Red Zone. High risk of injury. Immediate rest required.")
+elif risk_val > 0.4:
+    st.warning(f"⚠️ CAUTION: {player_name} is overreaching. Suggest reducing training load by 40%.")
+else:
     st.success(f"🟢 GREEN LIGHT: {player_name} is fully recovered and ready for high intensity.")
 
-st.markdown("---")
-st.caption(f"Spinix AI Elite v8.0 | Dr. Ziad Elshafei | Integrated Clinical System")
+st.caption("Spinix AI Elite v8.6 | Specialized Clinical System")
