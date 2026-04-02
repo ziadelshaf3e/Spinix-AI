@@ -170,6 +170,3 @@ else:
     st.success(f"🟢 CLEAR: {selected_athlete} is in optimal condition. Ready for match-day intensity.")
 
 st.caption(f"Spinix AI Ultimate v12.0 | Designed by Dr. Ziad Elshafei | Real Madrid Graduate School Integrated Models")
-    st.success(f"🟢 CLEAR: {player} is fit for elite performance.")
-
-st.caption(f"Spinix AI Ultimate v10.5 | Specialized Clinical System | {datetime.now().year}")
