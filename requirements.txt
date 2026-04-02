@@ -4,4 +4,4 @@ numpy
 plotly
 scikit-learn
 opencv-python-headless
-mediapipe==0.10.11
+mediapipe
