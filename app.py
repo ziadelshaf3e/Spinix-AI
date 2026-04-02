@@ -11,12 +11,11 @@ import tempfile
 from datetime import datetime
 
 # ==========================================
-# 🧠 AI BIOMECHANICS ENGINE (FIXED NameError)
+# 🧠 AI ENGINE INITIALIZATION
 # ==========================================
-# بنعرفه كـ None في الأول عشان نتفادى الـ NameError
-pose_engine = None
-mp_drawing = None
 mp_pose = None
+mp_drawing = None
+pose_engine = None
 
 try:
     import mediapipe as mp
@@ -25,118 +24,158 @@ try:
     mp_pose = mp_p
     mp_drawing = mp_d
     pose_engine = mp_pose.Pose(static_image_mode=False, model_complexity=1, min_detection_confidence=0.5)
-except:
-    try:
-        import mediapipe as mp
-        mp_pose = mp.solutions.pose
-        mp_drawing = mp.solutions.drawing_utils
-        pose_engine = mp_pose.Pose()
-    except Exception as e:
-        st.sidebar.warning("⚠️ AI Video Engine Offline (Check requirements.txt)")
+except Exception as e:
+    st.sidebar.warning(f"AI Module Note: Running in limited mode. ({e})")
 
 # ==========================================
-# 🎨 UI & CSS
+# 🎨 UI SETTINGS
 # ==========================================
-st.set_page_config(page_title="Spinix AI Elite v9.5", layout="wide")
+st.set_page_config(page_title="Spinix AI Ultra v10", layout="wide")
+
 st.markdown("""
 <style>
-    .main { background-color: #0b1117; color: #e6edf3; }
+    .main { background-color: #0d1117; color: #c9d1d9; }
     .stMetric { background: #161b22; padding: 15px; border-radius: 10px; border: 1px solid #30363d; }
-    h1, h2, h3 { color: #58a6ff !important; }
+    .card-panel { background: #161b22; padding: 20px; border-radius: 12px; border: 1px solid #30363d; margin-bottom: 20px; }
+    h1, h2, h3 { color: #58a6ff !important; font-family: 'Inter', sans-serif; }
+    .stButton>button { background-color: #238636; color: white; border-radius: 6px; width: 100%; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 🔐 LOGIN
+# 🔐 SECURE LOGIN
 # ==========================================
-if "login" not in st.session_state: st.session_state.login = False
-if not st.session_state.login:
-    u = st.text_input("User ID")
-    p = st.text_input("Access Key", type="password")
-    if st.button("Unlock"):
-        if u == "Dr. Ziad Elshafei" and p == "1234":
-            st.session_state.login = True
-            st.rerun()
+if "auth" not in st.session_state:
+    st.session_state.auth = False
+
+if not st.session_state.auth:
+    st.markdown("<h1 style='text-align:center;'>🛡️ Spinix AI Secure Access</h1>", unsafe_allow_html=True)
+    col_l, col_c, col_r = st.columns([1,1.5,1])
+    with col_c:
+        user_in = st.text_input("User ID")
+        pass_in = st.text_input("Access Key", type="password")
+        if st.button("Unlock Dashboard"):
+            if user_in == "Dr. Ziad Elshafei" and pass_in == "1234":
+                st.session_state.auth = True
+                st.rerun()
+            else:
+                st.error("Access Denied")
     st.stop()
 
 # ==========================================
-# 💾 DATABASE (With Diverse Dummy Data)
+# 💾 DATABASE & DIVERSE SQUAD DATA
 # ==========================================
-conn = sqlite3.connect("spinix_v95.db", check_same_thread=False)
+conn = sqlite3.connect("spinix_ultra_v10.db", check_same_thread=False)
 
-def get_diverse_data():
-    try: return pd.read_sql("SELECT * FROM data", conn)
+def init_squad_data():
+    try:
+        return pd.read_sql("SELECT * FROM squad", conn)
     except:
-        # داتا متباينة (الرجالة والستات والحالات المختلفة)
-        data = {
-            "Date": pd.to_datetime(["2026-04-01"]*10),
-            "Player": ["Ziad (Elite)", "Mohamed (Bad)", "Sara (Good)", "Tarek (Danger)", "Nour (Pro)", 
-                       "Ahmed (Weak)", "Layla (Fit)", "Mona (Fatigue)", "Omar (Stable)", "Yasmine (Fresh)"],
-            "Gender": ["Male", "Male", "Female", "Male", "Female", "Male", "Female", "Female", "Male", "Female"],
-            "Workload": [700, 1200, 450, 1100, 500, 950, 350, 600, 550, 200],
-            "RPE": [7, 10, 5, 10, 6, 9, 4, 8, 6, 2],
-            "Sleep": [8, 4, 8, 4, 7, 5, 9, 5, 7, 9],
-            "HRV": [75, 45, 85, 40, 80, 50, 90, 60, 70, 95]
+        # داتا ضخمة متباينة (رجالة/ستات - مستويات مختلفة)
+        squad = {
+            "Date": pd.to_datetime(["2026-04-02"]*12),
+            "Player": ["Ziad (Elite)", "Mohamed (Overtrained)", "Sara (Optimal)", "Tarek (Injury Risk)", 
+                       "Nour (Pro)", "Ahmed (Fatigued)", "Layla (Recovery)", "Mona (Caution)", 
+                       "Omar (Stable)", "Yasmine (Fresh)", "Hassan (Weak)", "Mariam (Elite)"],
+            "Gender": ["Male", "Male", "Female", "Male", "Female", "Male", "Female", "Female", "Male", "Female", "Male", "Female"],
+            "Workload": [750, 1300, 420, 1150, 500, 980, 320, 650, 580, 250, 850, 410],
+            "RPE": [7, 10, 5, 10, 6, 9, 3, 8, 6, 2, 9, 4],
+            "Sleep": [8, 4, 9, 3, 7, 5, 9, 5, 7, 9, 5, 8],
+            "HRV": [80, 40, 90, 35, 82, 48, 95, 62, 72, 98, 55, 88]
         }
-        df_init = pd.DataFrame(data)
-        df_init.to_sql("data", conn, if_exists="replace", index=False)
-        return df_init
+        df_db = pd.DataFrame(squad)
+        df_db.to_sql("squad", conn, if_exists="replace", index=False)
+        return df_db
 
 # ==========================================
-# 📂 DATA LOADING
+# 📂 DATA PROCESSING
 # ==========================================
-df = get_diverse_data()
-player = st.sidebar.selectbox("Select Athlete Profile", df['Player'].unique())
-p_df = df[df['Player'] == player].copy()
+df = init_squad_data()
+st.sidebar.title(f"👨‍⚕️ Dr. Ziad Elshafei")
+st.sidebar.markdown("---")
+
+upload = st.sidebar.file_uploader("Sync New Athlete Data", type="csv")
+if upload:
+    new_df = pd.read_csv(upload)
+    new_df.to_sql("squad", conn, if_exists="replace", index=False)
+    st.sidebar.success("Cloud Database Updated")
+
+sel_player = st.sidebar.selectbox("Active Profile", df['Player'].unique())
+p_df = df[df['Player'] == sel_player].copy()
 p_df['Date'] = pd.to_datetime(p_df['Date'])
 
-# الحسابات
+# AI Calculation Logic
 p_df['Acute'] = p_df['Workload'].rolling(7, 1).mean()
 p_df['Chronic'] = p_df['Workload'].rolling(28, 1).mean()
 p_df['ACWR'] = p_df['Acute'] / p_df['Chronic'].replace(0, 1)
 
 # ==========================================
-# 🏟️ DASHBOARD
+# 🏟️ MASTER DASHBOARD
 # ==========================================
-st.title(f"🚀 Spinix Pro: {player} ({p_df['Gender'].iloc[0]})")
+st.title(f"🚀 Spinix AI Hub | {sel_player}")
 
-c1, c2, c3 = st.columns(3)
-risk = (p_df['Workload'].iloc[-1] / 1200) * (10 / p_df['Sleep'].iloc[-1])
-c1.metric("Injury Risk Index", f"{min(risk*10, 100):.1f}%")
-c2.metric("ACWR Ratio", f"{p_df['ACWR'].iloc[-1]:.2f}")
-c3.metric("Gender-Specific Load", p_df['Gender'].iloc[0])
+# Metrics Row
+m1, m2, m3, m4 = st.columns(4)
+risk_score = (p_df['Workload'].iloc[-1] / 1000) * (10 / p_df['Sleep'].iloc[-1])
+m1.metric("Injury Risk Index", f"{min(risk_score*10, 100):.1f}%")
+m2.metric("ACWR (Load Ratio)", f"{p_df['ACWR'].iloc[-1]:.2f}")
+m3.metric("Readiness Score", f"{int(100 - (risk_score*5))}%")
+m4.metric("Gender Group", p_df['Gender'].iloc[0])
 
-tab1, tab2 = st.tabs(["📊 Performance Stats", "🦴 AI Biomechanics"])
-
-with tab1:
-    st.plotly_chart(px.bar(df, x='Player', y='Workload', color='Gender', title="Squad Load Comparison (Male vs Female)"))
-    st.plotly_chart(px.line(p_df, x='Date', y='Workload', title="Personal Load Trend"))
-
-with tab2:
-    if pose_engine is None:
-        st.error("AI Engine is offline. Check server logs.")
-    else:
-        v_file = st.file_uploader("Upload Movement Video", type=['mp4', 'mov'])
-        if v_file:
-            tfile = tempfile.NamedTemporaryFile(delete=False)
-            tfile.write(v_file.read())
-            cap = cv2.VideoCapture(tfile.name)
-            ret, frame = cap.read()
-            if ret:
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                results = pose_engine.process(frame_rgb)
-                if results.pose_landmarks:
-                    mp_drawing.draw_landmarks(frame_rgb, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
-                st.image(frame_rgb, use_container_width=True)
-
-# Decision Support
 st.divider()
-if risk > 1.5:
-    st.error(f"🚨 CRITICAL ALERT: {player} needs immediate rest.")
-elif risk > 0.8:
-    st.warning(f"⚠️ CAUTION: {player} is overreaching.")
+
+# Tab System
+t_performance, t_bio, t_roi = st.tabs(["📉 Squad Analytics", "🦴 AI Biomechanics", "💰 SPX Business ROI"])
+
+with t_performance:
+    st.subheader("Squad Load Contrast (Male vs Female)")
+    fig_bar = px.bar(df, x='Player', y='Workload', color='Gender', 
+                     color_discrete_map={"Male": "#58a6ff", "Female": "#ff7b72"},
+                     template="plotly_dark")
+    st.plotly_chart(fig_bar, use_container_width=True)
+    
+    st.subheader("Individual HRV vs Workload")
+    fig_line = px.line(p_df, x='Date', y=['Workload', 'HRV'], markers=True)
+    st.plotly_chart(fig_line, use_container_width=True)
+
+with t_bio:
+    st.subheader("AI Skeletal Movement Tracking")
+    if pose_engine is None:
+        st.error("AI Video Engine is currently offline on this server.")
+    else:
+        v_file = st.file_uploader("Upload Action Video (MP4/MOV)", type=['mp4', 'mov'])
+        if v_file:
+            with st.spinner("Analyzing Movement..."):
+                tfile = tempfile.NamedTemporaryFile(delete=False)
+                tfile.write(v_file.read())
+                cap = cv2.VideoCapture(tfile.name)
+                ret, frame = cap.read()
+                if ret:
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    results = pose_engine.process(frame_rgb)
+                    if results.pose_landmarks:
+                        mp_drawing.draw_landmarks(frame_rgb, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+                    st.image(frame_rgb, use_container_width=True, caption="Spinix AI Pose Tracking")
+                cap.release()
+
+with t_roi:
+    st.subheader("SPX Brand & Clinic ROI")
+    c_roi1, c_roi2 = st.columns(2)
+    with c_roi1:
+        st.metric("Clinic Saved Revenue", f"${int(risk_score*1200)}", "From Injury Prevention")
+    with c_roi2:
+        st.metric("SPX Supplements Growth", "+38%", "Q1 2026")
+
+# Decision Logic
+st.divider()
+if risk_score > 1.5:
+    st.error(f"🛑 CRITICAL: {sel_player} is in the Red Zone. Mandatory rest required.")
+elif risk_score > 0.8:
+    st.warning(f"⚠️ CAUTION: {sel_player} showing high fatigue levels. Reduce training intensity.")
 else:
-    st.success(f"🟢 CLEAR: {player} is ready for Elite performance.")
+    st.success(f"🟢 CLEAR: {sel_player} is in optimal condition for high-performance training.")
+
+st.caption("Spinix AI Ultimate v10.0 | Dr. Ziad Elshafei x Real Madrid Graduate School Data Model")
 else:
     st.success(f"🟢 CLEAR: {player} is in optimal condition. READY for full training load and match intensity.")
 
